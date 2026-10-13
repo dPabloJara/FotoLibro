@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <!-- Evita el zoom nativo al hacer doble toque o pellizcar -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>¡Felices 28 mi vida! - Fotolibro</title>
     
@@ -12,96 +13,101 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            /* Evita el destello azul al tocar la pantalla en móviles */
             -webkit-tap-highlight-color: transparent; 
         }
 
         body, html {
             width: 100vw;
-            height: 100vh;
+            /* 100dvh es vital: se adapta dinámicamente si aparece la barra de navegación del celular */
+            height: 100dvh; 
             overflow: hidden; 
-            background-color: #fbf8f1; /* Fondo crema para que se funda con las imágenes */
+            background-color: #fbf8f1;
             font-family: sans-serif;
+            touch-action: manipulation; /* Refuerzo para evitar zoom nativo */
         }
 
-        /* Contenedor principal con perspectiva para el efecto 3D */
-        .book-container {
+        .viewer-container {
             position: relative;
-            width: 100%;
-            height: 100%;
-            perspective: 1200px; /* Profundidad del efecto 3D */
+            width: 100vw;
+            height: 100dvh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
-        /* STREAMING_CHUNK:Estilos de las páginas individuales -->
         .page {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: #fbf8f1;
             
-            /* Transición suave para el Slide y el Flip 3D */
-            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1), opacity 0.8s ease;
-            
-            /* Estado inicial (páginas a la derecha, esperando entrar) */
-            transform: translateX(50%) rotateY(45deg) scale(0.8);
+            /* Efecto Fade + Scale suave y sin desbordes */
             opacity: 0;
+            transform: scale(0.95);
             visibility: hidden;
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
             z-index: 1;
         }
 
-        /* Página que se está viendo actualmente */
         .page.active {
-            transform: translateX(0) rotateY(0) scale(1);
             opacity: 1;
+            transform: scale(1);
             visibility: visible;
             z-index: 10;
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
         }
 
-        /* Páginas que ya pasaron (a la izquierda) */
-        .page.past {
-            transform: translateX(-50%) rotateY(-45deg) scale(0.8);
-            opacity: 0;
-            visibility: hidden;
-            z-index: 1;
-        }
-
-        /* STREAMING_CHUNK:Ajuste de imágenes para que NUNCA se corten -->
+        /* La clave para mantener proporciones perfectas */
         .page img {
             width: 100%;
             height: 100%;
-            /* contain asegura que la imagen se vea completa siempre */
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain; 
-            pointer-events: none; /* Evita que la imagen interfiera con el toque */
+            pointer-events: none; /* Las imágenes no interfieren con el toque */
         }
-        
-        /* Indicador de toque sutil al inicio */
+
+        .touch-zone {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 50%;
+            z-index: 50; /* Por encima de las imágenes */
+            cursor: pointer;
+        }
+
+        .touch-left {
+            left: 0;
+        }
+
+        .touch-right {
+            right: 0;
+        }
+
+        /* Indicador de ayuda inicial */
         .hint {
             position: absolute;
-            bottom: 30px;
+            bottom: 40px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.5);
             color: white;
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 20px;
             font-size: 14px;
             z-index: 100;
             pointer-events: none;
             transition: opacity 0.5s;
             letter-spacing: 0.5px;
+            text-align: center;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body>
 
-    <div class="book-container" id="bookContainer">
-        <!-- Página 1 a 13 -->
+    <div class="viewer-container" id="viewerContainer">
+        <!-- Imágenes del fotolibro -->
         <div class="page active"><img src="1.jpg" alt="Página 1" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=Portada+(1.jpg)'"></div>
         <div class="page"><img src="2.jpg" alt="Página 2" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=Epílogo+(2.jpg)'"></div>
         <div class="page"><img src="3.jpg" alt="Página 3" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=3.jpg'"></div>
@@ -115,76 +121,47 @@
         <div class="page"><img src="11.jpg" alt="Página 11" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=Capaz+(11.jpg)'"></div>
         <div class="page"><img src="12.jpg" alt="Página 12" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=Hermosa+(12.jpg)'"></div>
         <div class="page"><img src="13.jpg" alt="Página 13" onerror="this.src='https://placehold.co/800x1200/fbf8f1/d8a3b0?text=Contraportada+(13.jpg)'"></div>
+
+        <!-- Zonas de navegación superpuestas e invisibles -->
+        <div class="touch-zone touch-left" id="btnPrev"></div>
+        <div class="touch-zone touch-right" id="btnNext"></div>
+        
+        <div class="hint" id="hintText">Toca los bordes para cambiar de foto</div>
     </div>
-    
-    <div class="hint" id="hintText">Toca los lados para pasar de página</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const pages = document.querySelectorAll('.page');
+            const btnPrev = document.getElementById('btnPrev');
+            const btnNext = document.getElementById('btnNext');
             const hintText = document.getElementById('hintText');
+            
             let currentIndex = 0;
             const totalPages = pages.length;
 
-            // Función para actualizar las clases CSS y generar el efecto 3D
-            function updatePages() {
-                pages.forEach((page, index) => {
-                    // Limpiar clases
-                    page.classList.remove('active', 'past');
-                    
-                    if (index === currentIndex) {
-                        page.classList.add('active');
-                    } else if (index < currentIndex) {
-                        page.classList.add('past');
-                    }
-                    // Si el índice es mayor, se queda sin clases (estado por defecto: a la derecha)
-                });
-            }
-
-            // Función para disparar confeti sutil al cambiar de página
-            function fireSubtleConfetti() {
-                confetti({
-                    particleCount: 20,
-                    spread: 50,
-                    origin: { y: 0.8 },
-                    colors: ['#d8a3b0', '#f4e9e6', '#ffffff'] // Colores pastel acordes al diseño
-                });
-            }
-
-            document.body.addEventListener('click', (e) => {
-                // Ocultar el texto de ayuda al primer toque
+            function updateCarousel(newIndex) {
+                // Ocultar texto de ayuda
                 if(hintText) hintText.style.opacity = '0';
 
-                const screenWidth = window.innerWidth;
-                const clickX = e.clientX;
+                // Remover clase activa de la imagen actual
+                pages[currentIndex].classList.remove('active');
+                
+                // Actualizar índice
+                currentIndex = newIndex;
+                
+                // Agregar clase activa a la nueva imagen
+                pages[currentIndex].classList.add('active');
+            }
 
-                if (clickX > screenWidth / 2) {
-                    // Tocar lado derecho -> Siguiente página
-                    if (currentIndex < totalPages - 1) {
-                        currentIndex++;
-                        updatePages();
-                        fireSubtleConfetti();
-                    }
-                } else {
-                    // Tocar lado izquierdo -> Página anterior
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                        updatePages();
-                    }
-                }
-            });
-
-            // Soporte para flechas del teclado (por si lo abre en PC)
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowRight' && currentIndex < totalPages - 1) {
-                    currentIndex++;
-                    updatePages();
-                    fireSubtleConfetti();
-                } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
-                    currentIndex--;
-                    updatePages();
-                }
-            });
+            function fireSubtleConfetti() {
+                confetti({
+                    particleCount: 25,
+                    spread: 60,
+                    origin: { y: 0.8 },
+                    colors: ['#d8a3b0', '#f4e9e6', '#ffffff'],
+                    disableForReducedMotion: true
+                });
+            }
 
             function initialCelebration() {
                 const duration = 2500;
@@ -212,11 +189,30 @@
                 }, 250);
             }
 
-            // Ejecutar la celebración inicial medio segundo después de cargar
+            btnPrev.addEventListener('click', () => {
+                if (currentIndex > 0) {
+                    updateCarousel(currentIndex - 1);
+                }
+            });
+
+            btnNext.addEventListener('click', () => {
+                if (currentIndex < totalPages - 1) {
+                    updateCarousel(currentIndex + 1);
+                    fireSubtleConfetti();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                    updateCarousel(currentIndex - 1);
+                } else if (e.key === 'ArrowRight' && currentIndex < totalPages - 1) {
+                    updateCarousel(currentIndex + 1);
+                    fireSubtleConfetti();
+                }
+            });
+
+            // Disparar celebración inicial medio segundo después de abrir
             setTimeout(initialCelebration, 500);
-            
-            // Inicializar las páginas correctamente
-            updatePages();
         });
     </script>
 </body>
